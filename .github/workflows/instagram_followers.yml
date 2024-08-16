@@ -31,11 +31,14 @@ jobs:
 
     - name: Commit and push changes
       run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add instagram_followers.csv
-        git commit -m 'Updated Instagram followers data'
-        git push
+        if [ -f "instagram_followers.csv" ]; then
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add instagram_followers.csv
+          git commit -m 'Updated Instagram followers data'
+          git push
+        else
+          echo "File 'instagram_followers.csv' not found, skipping commit."
+        fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      continue-on-error: true
