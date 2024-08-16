@@ -27,11 +27,18 @@ else:
         else:
             posts_per_date[date_str] = 1
 
-    # Сохраняем результаты в CSV файл
-    with open('instagram_posts_data.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Дата', 'Количество публикаций'])
-        for date, count in sorted(posts_per_date.items()):
-            writer.writerow([date, count])
+    # Проверяем, есть ли данные для сохранения
+    if posts_per_date:
+        # Сохраняем результаты в CSV файл
+        with open('instagram_posts_data.csv', mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(['Дата', 'Количество публикаций'])
+            for date, count in sorted(posts_per_date.items()):
+                writer.writerow([date, count])
 
-    print("Данные успешно сохранены в 'instagram_posts_data.csv'.")
+        print("Данные успешно сохранены в 'instagram_posts_data.csv'.")
+    else:
+        print("Нет данных для записи в файл.")
+
+# Убедитесь, что скрипт завершился успешно
+exit(0)
