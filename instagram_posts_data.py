@@ -12,6 +12,9 @@ url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,
 response = requests.get(url)
 data = response.json()
 
+# Вывод полного ответа API для отладки
+print(data)
+
 # Проверяем наличие ключа 'data' в ответе
 if 'data' not in data:
     print("Ошибка: нет данных в ответе API.")
