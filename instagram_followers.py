@@ -35,6 +35,7 @@ print("API response:", data)
 
 # Проверяем, есть ли данные в ответе
 if 'data' in data:
+    print("Data found, proceeding to create file.")
     # Сохраняем данные в CSV файл
     with open('instagram_followers.csv', 'w', newline='') as csvfile:
         fieldnames = ['date', 'followers_count']
@@ -46,4 +47,5 @@ if 'data' in data:
 
     print("File 'instagram_followers.csv' created successfully in:", os.getcwd())
 else:
-    print("Error: No data found in API response.")
+    print("No 'data' key found in API response. Response received:")
+    print(data)
