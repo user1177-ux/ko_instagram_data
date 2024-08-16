@@ -1,9 +1,9 @@
-name: Fetch Instagram Followers Data
+name: Fetch Instagram Posts Data
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Запускает скрипт каждый день в полночь
-  workflow_dispatch:  # Позволяет запускать вручную через интерфейс GitHub
+    - cron: '0 0 * * *'  # Запуск каждый день в 00:00
+  workflow_dispatch:
 
 jobs:
   fetch-data:
@@ -23,22 +23,30 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests
 
-    - name: Run Instagram followers script
-      run: python instagram_followers.py
+    - name: Run Instagram posts script
+      run: python instagram_posts_data.py
       env:
         ACCESS_TOKEN: ${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
         INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
 
     - name: Commit and push changes
       run: |
-        if [ -f "instagram_followers.csv" ]; then
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git add instagram_followers.csv
-          git commit -m 'Updated Instagram followers data'
-          git push
-        else
-          echo "File 'instagram_followers.csv' not found, skipping commit."
-        fi
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+        git add instagram_posts_data.csv
+        git commit -m 'Updated Instagram posts data'
+        git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Post Set up Python
+      if: always()
+      run: echo "Post set up Python"
+
+    - name: Post Checkout repository
+      if: always()
+      run: echo "Post Checkout repository"
+
+    - name: Complete job
+      if: always()
+      run: echo "Job completed"
