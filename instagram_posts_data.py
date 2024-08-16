@@ -9,45 +9,29 @@ instagram_account_id = 'INSTAGRAM_ACCOUNT_ID'
 # URL для запроса медиа-объектов аккаунта
 url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp&access_token={access_token}'
 
-# Запрашиваем данные о публикациях
 response = requests.get(url)
 data = response.json()
 
-# Инициализируем словарь для хранения количества публикаций по датам
-posts_by_date = {}
+# Проверяем наличие ключа 'data' в ответе
+if 'data' not in data:
+    print("Ошибка: нет данных в ответе API.")
+else:
+    # Создаем словарь для подсчета количества публикаций по датам
+    posts_per_date = {}
 
-# Обрабатываем полученные данные
-while True:
+    # Проходим по всем медиа-объектам и считаем публикации по датам
     for media in data['data']:
-        # Получаем дату публикации в формате YYYY-MM-DD
-        date = media['timestamp'][:10]
-
-        # Увеличиваем счетчик публикаций для этой даты
-        if date in posts_by_date:
-            posts_by_date[date] += 1
+        date_str = media['timestamp'][:10]  # Извлекаем дату (YYYY-MM-DD)
+        if date_str in posts_per_date:
+            posts_per_date[date_str] += 1
         else:
-            posts_by_date[date] = 1
+            posts_per_date[date_str] = 1
 
-    # Проверяем, есть ли следующая страница с данными
-    if 'paging' in data and 'next' in data['paging']:
-        next_url = data['paging']['next']
-        response = requests.get(next_url)
-        data = response.json()
-    else:
-        break
+    # Сохраняем результаты в CSV файл
+    with open('instagram_posts_data.csv', mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Дата', 'Количество публикаций'])
+        for date, count in sorted(posts_per_date.items()):
+            writer.writerow([date, count])
 
-# Сортируем даты
-sorted_dates = sorted(posts_by_date.keys())
-
-# Путь для сохранения CSV файла
-csv_file_path = 'instagram_posts_data.csv'
-
-# Записываем данные в CSV
-with open(csv_file_path, mode='w', newline='', encoding='utf-8') as file:
-    writer = csv.writer(file)
-    writer.writerow(['Дата', 'Количество публикаций'])
-
-    for date in sorted_dates:
-        writer.writerow([date, posts_by_date[date]])
-
-print(f'Data saved to {csv_file_path}')
+    print("Данные успешно сохранены в 'instagram_posts_data.csv'.")
