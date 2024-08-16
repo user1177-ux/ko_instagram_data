@@ -1,51 +1,53 @@
 import requests
-import datetime
 import csv
-import os
+from datetime import datetime
 
-# Ваш токен доступа
-access_token = 'ACCESS_TOKEN'
-# ID вашего бизнес-аккаунта Instagram
-instagram_account_id = 'INSTAGRAM_ACCOUNT_ID'
+# Замените на ваш access_token и instagram_account_id
+access_token = 'ВАШ_ТОКЕН_ДОСТУПА'
+instagram_account_id = 'ВАШ_ИНСТАГРАМ_АККАУНТ_ID'
 
-# Конечная точка API для получения количества подписчиков
-url = f'https://graph.facebook.com/v12.0/{instagram_account_id}/insights'
+# URL для запроса медиа-объектов аккаунта
+url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp&access_token={access_token}'
 
-# Запрашиваемые параметры
-params = {
-    'metric': 'follower_count',
-    'period': 'day',
-    'access_token': access_token
-}
-
-# Получаем текущую дату и дату два месяца назад
-end_date = datetime.datetime.now().date()
-start_date = (end_date - datetime.timedelta(days=60)).strftime('%Y-%m-%d')
-
-# Добавляем временной интервал в параметры запроса
-params['since'] = start_date
-params['until'] = end_date.strftime('%Y-%m-%d')
-
-# Отправляем запрос к API
-response = requests.get(url, params=params)
+# Запрашиваем данные о публикациях
+response = requests.get(url)
 data = response.json()
 
-# Печатаем полный ответ API для диагностики
-print("API response:", data)
+# Инициализируем словарь для хранения количества публикаций по датам
+posts_by_date = {}
 
-# Проверяем, есть ли данные в ответе
-if 'data' in data:
-    print("Data found, proceeding to create file.")
-    # Сохраняем данные в CSV файл
-    with open('instagram_followers.csv', 'w', newline='') as csvfile:
-        fieldnames = ['date', 'followers_count']
-        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-        writer.writeheader()
+# Обрабатываем полученные данные
+while True:
+    for media in data['data']:
+        # Получаем дату публикации в формате YYYY-MM-DD
+        date = media['timestamp'][:10]
 
-        for entry in data['data'][0]['values']:
-            writer.writerow({'date': entry['end_time'], 'followers_count': entry['value']})
+        # Увеличиваем счетчик публикаций для этой даты
+        if date in posts_by_date:
+            posts_by_date[date] += 1
+        else:
+            posts_by_date[date] = 1
 
-    print("File 'instagram_followers.csv' created successfully in:", os.getcwd())
-else:
-    print("No 'data' key found in API response. Response received:")
-    print(data)
+    # Проверяем, есть ли следующая страница с данными
+    if 'paging' in data and 'next' in data['paging']:
+        next_url = data['paging']['next']
+        response = requests.get(next_url)
+        data = response.json()
+    else:
+        break
+
+# Сортируем даты
+sorted_dates = sorted(posts_by_date.keys())
+
+# Путь для сохранения CSV файла
+csv_file_path = 'instagram_posts_data.csv'
+
+# Записываем данные в CSV
+with open(csv_file_path, mode='w', newline='', encoding='utf-8') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Дата', 'Количество публикаций'])
+
+    for date in sorted_dates:
+        writer.writerow([date, posts_by_date[date]])
+
+print(f'Data saved to {csv_file_path}')
