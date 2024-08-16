@@ -1,6 +1,7 @@
 import requests
 import datetime
 import csv
+import os
 
 # Ваш токен доступа
 access_token = 'ACCESS_TOKEN'
@@ -30,7 +31,7 @@ response = requests.get(url, params=params)
 data = response.json()
 
 # Печатаем полный ответ API для диагностики
-print(data)
+print("API response:", data)
 
 # Проверяем, есть ли данные в ответе
 if 'data' in data:
@@ -43,7 +44,6 @@ if 'data' in data:
         for entry in data['data'][0]['values']:
             writer.writerow({'date': entry['end_time'], 'followers_count': entry['value']})
 
-    print("Данные успешно выгружены в файл instagram_followers.csv")
+    print("File 'instagram_followers.csv' created successfully in:", os.getcwd())
 else:
-    print("Ошибка: данные не были получены. Ответ API:")
-    print(data)
+    print("Error: No data found in API response.")
