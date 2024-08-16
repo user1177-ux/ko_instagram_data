@@ -29,13 +29,21 @@ params['until'] = end_date.strftime('%Y-%m-%d')
 response = requests.get(url, params=params)
 data = response.json()
 
-# Сохраняем данные в CSV файл
-with open('instagram_followers.csv', 'w', newline='') as csvfile:
-    fieldnames = ['date', 'followers_count']
-    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-    writer.writeheader()
-    
-    for entry in data['data'][0]['values']:
-        writer.writerow({'date': entry['end_time'], 'followers_count': entry['value']})
+# Печатаем полный ответ API для диагностики
+print(data)
 
-print("Данные успешно выгружены в файл instagram_followers.csv")
+# Проверяем, есть ли данные в ответе
+if 'data' in data:
+    # Сохраняем данные в CSV файл
+    with open('instagram_followers.csv', 'w', newline='') as csvfile:
+        fieldnames = ['date', 'followers_count']
+        writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+        writer.writeheader()
+
+        for entry in data['data'][0]['values']:
+            writer.writerow({'date': entry['end_time'], 'followers_count': entry['value']})
+
+    print("Данные успешно выгружены в файл instagram_followers.csv")
+else:
+    print("Ошибка: данные не были получены. Ответ API:")
+    print(data)
