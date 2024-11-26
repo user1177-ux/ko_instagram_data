@@ -3,8 +3,8 @@ import csv
 from datetime import datetime
 
 # Замените на ваш access_token и instagram_account_id
-access_token = 'ACCESS_TOKEN_KO'
-instagram_account_id = 'INSTAGRAM_ACCOUNT_ID_KO'
+access_token = os.getenv('ACCESS_TOKEN_KO')
+instagram_account_id = os.getenv('INSTAGRAM_ACCOUNT_ID_KO')
 
 # URL для запроса медиа-объектов аккаунта
 url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp&access_token={access_token}'
