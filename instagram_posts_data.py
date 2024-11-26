@@ -3,9 +3,13 @@ import csv
 import os
 from datetime import datetime
 
-# Замените на ваш access_token и instagram_account_id
+# Извлекаем переменные окружения
 access_token = os.getenv('ACCESS_TOKEN_KO')
 instagram_account_id = os.getenv('INSTAGRAM_ACCOUNT_ID_KO')
+
+# Проверка, что переменные окружения заданы
+if not access_token or not instagram_account_id:
+    raise ValueError("Токен доступа (ACCESS_TOKEN_KO) или ID аккаунта (INSTAGRAM_ACCOUNT_ID_KO) не установлены в переменных окружения.")
 
 # URL для запроса медиа-объектов аккаунта
 url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp&access_token={access_token}'
