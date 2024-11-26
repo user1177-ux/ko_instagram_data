@@ -1,6 +1,6 @@
 import requests
 import csv
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # Токен доступа и ID Instagram-аккаунта
 access_token = 'EAAUjRaaBokMBO02Q6CVeAjWLBdchyobrh8Ogd6vudHpcM06BjJ96RnnfJmVi9aafWZBLnEsllDZAh4jeIWK9iVDBbdNN2YXl6dEZAjWNMKcrBiNa0HivjhuGvPEIKTXRPoOFvjLvPqdcVCdkAsikiMaVaqWco3oxYkMiDsVdS6xj9R0vuHuJOgq1QVINbiWIFl7UI3AMhqhTFcKMBudOjdWMLYZD'
@@ -22,8 +22,8 @@ def process_page(data):
         media_id = media['id']
         date_str = media['timestamp'][:10]  # Извлекаем дату (YYYY-MM-DD)
 
-        # Запрашиваем метрики для конкретного поста
-        metrics_url = f'https://graph.facebook.com/v20.0/{media_id}/insights?metric=engagement,impressions,comments&access_token={access_token}'
+        # Запрашиваем лайки и комментарии для конкретного поста
+        metrics_url = f'https://graph.facebook.com/v20.0/{media_id}?fields=like_count,comments_count&access_token={access_token}'
         metrics_response = requests.get(metrics_url)
         metrics_data = metrics_response.json()
 
@@ -34,12 +34,9 @@ def process_page(data):
         # Увеличиваем количество публикаций
         posts_data[date_str]['posts_count'] += 1
 
-        # Добавляем лайки и комментарии из метрик
-        for metric in metrics_data.get('data', []):
-            if metric['name'] == 'engagement':
-                posts_data[date_str]['likes'] += metric['values'][0]['value']
-            elif metric['name'] == 'comments':
-                posts_data[date_str]['comments'] += metric['values'][0]['value']
+        # Добавляем лайки и комментарии
+        posts_data[date_str]['likes'] += metrics_data.get('like_count', 0)
+        posts_data[date_str]['comments'] += metrics_data.get('comments_count', 0)
 
 # Обрабатываем все страницы
 next_url = base_url
@@ -53,18 +50,22 @@ while next_url:
     # Переходим на следующую страницу, если она есть
     next_url = data.get('paging', {}).get('next')
 
-# Проверяем, есть ли данные для сохранения
-if posts_data:
-    # Сохраняем результаты в CSV файл
-    with open('instagram_posts_data.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow(['Дата', 'Количество публикаций', 'Лайки', 'Комментарии'])
-        for date, metrics in sorted(posts_data.items()):
-            writer.writerow([date, metrics['posts_count'], metrics['likes'], metrics['comments']])
+# Создаём полный список дат за год
+start_date = datetime(datetime.now().year, 1, 1)
+end_date = datetime(datetime.now().year, 12, 31)
+all_dates = [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') for i in range((end_date - start_date).days + 1)]
 
-    print("Данные успешно сохранены в 'instagram_posts_data.csv'.")
-else:
-    print("Нет данных для записи в файл.")
+# Убедимся, что для всех дат есть данные (добавляем 0 для отсутствующих дат)
+for date in all_dates:
+    if date not in posts_data:
+        posts_data[date] = {'posts_count': 0, 'likes': 0, 'comments': 0}
 
-# Убедитесь, что скрипт завершился успешно
-exit(0)
+# Сохраняем результаты в CSV файл
+with open('instagram_posts_data.csv', mode='w', newline='') as file:
+    writer = csv.writer(file)
+    writer.writerow(['Дата', 'Количество публикаций', 'Лайки', 'Комментарии'])
+    for date in sorted(posts_data.keys()):
+        metrics = posts_data[date]
+        writer.writerow([date, metrics['posts_count'], metrics['likes'], metrics['comments']])
+
+print("Данные успешно сохранены в 'instagram_posts_data.csv'.")
