@@ -22,6 +22,9 @@ jobs:
         pip install requests
 
     - name: Run Instagram posts script
+      env:
+        ACCESS_TOKEN_KO: ${{ secrets.ACCESS_TOKEN_KO }}
+        INSTAGRAM_ACCOUNT_ID_KO: ${{ secrets.INSTAGRAM_ACCOUNT_ID_KO }}
       run: python instagram_posts_data.py
 
     - name: Commit and push changes
@@ -34,6 +37,3 @@ jobs:
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        ACCESS_TOKEN_KO: ${{ secrets.ACCESS_TOKEN_KO }}
-        INSTAGRAM_ACCOUNT_ID_KO: ${{ secrets.INSTAGRAM_ACCOUNT_ID_KO }}
-      continue-on-error: true
