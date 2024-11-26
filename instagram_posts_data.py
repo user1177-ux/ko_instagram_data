@@ -4,8 +4,8 @@ import os
 from datetime import datetime
 
 # Извлекаем переменные окружения
-access_token = os.getenv('ACCESS_TOKEN_KO')
-instagram_account_id = os.getenv('INSTAGRAM_ACCOUNT_ID_KO')
+access_token = 'EAAUjRaaBokMBO02Q6CVeAjWLBdchyobrh8Ogd6vudHpcM06BjJ96RnnfJmVi9aafWZBLnEsllDZAh4jeIWK9iVDBbdNN2YXl6dEZAjWNMKcrBiNa0HivjhuGvPEIKTXRPoOFvjLvPqdcVCdkAsikiMaVaqWco3oxYkMiDsVdS6xj9R0vuHuJOgq1QVINbiWIFl7UI3AMhqhTFcKMBudOjdWMLYZD'
+instagram_account_id = '17841459665084773'
 
 # Проверка, что переменные окружения заданы
 if not access_token or not instagram_account_id:
