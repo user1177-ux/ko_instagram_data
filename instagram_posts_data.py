@@ -1,5 +1,6 @@
 import requests
 import csv
+import os
 from datetime import datetime
 
 # Замените на ваш access_token и instagram_account_id
