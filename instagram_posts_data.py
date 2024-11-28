@@ -11,18 +11,27 @@ if not access_token or not instagram_account_id:
     raise ValueError("Токен доступа или ID аккаунта не установлены.")
 
 # URL для запроса первой страницы медиа-объектов
-base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp,media_type&access_token={access_token}'
+base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp,media_type,caption&access_token={access_token}'
 
 # Словарь для хранения данных
 posts_data = {}
 earliest_date = None  # Переменная для самой ранней даты публикации
+
+# Функция для проверки, является ли объект рилсом
+def is_reel(media):
+    # API может не иметь явного типа "REELS", поэтому проверяем дополнительные атрибуты
+    media_type = media.get('media_type', '')
+    caption = media.get('caption', '').lower()  # Проверяем описание на ключевые слова
+    if media_type == 'VIDEO' and 'reel' in caption:
+        return True
+    return False
 
 # Функция для обработки данных со страницы
 def process_page(data):
     global earliest_date
     for media in data.get('data', []):
         media_id = media['id']
-        media_type = media.get('media_type', '')  # Тип медиа (IMAGE, VIDEO, CAROUSEL_ALBUM, REELS)
+        media_type = media.get('media_type', '')  # Тип медиа
         date_str = media['timestamp'][:10]  # Извлекаем дату (YYYY-MM-DD)
 
         # Определяем самую раннюю дату
@@ -33,8 +42,8 @@ def process_page(data):
         if date_str not in posts_data:
             posts_data[date_str] = {'posts_count': 0, 'reels_count': 0, 'likes': 0, 'comments': 0}
 
-        # Увеличиваем количество постов или рилсов
-        if media_type == 'REELS':
+        # Проверяем, является ли объект рилсом
+        if is_reel(media):
             posts_data[date_str]['reels_count'] += 1
         else:
             posts_data[date_str]['posts_count'] += 1
@@ -53,6 +62,9 @@ next_url = base_url
 while next_url:
     response = requests.get(next_url)
     data = response.json()
+
+    # Добавляем отладочный вывод для проверки данных
+    print("Ответ API:", data)
 
     # Обрабатываем текущую страницу данных
     process_page(data)
