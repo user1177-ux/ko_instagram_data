@@ -3,8 +3,8 @@ from datetime import datetime, timedelta
 import requests
 
 # Токен доступа и ID Instagram-аккаунта
-access_token = 'ТВОЙ_ACCESS_TOKEN'
-instagram_account_id = 'ТВОЙ_INSTAGRAM_ACCOUNT_ID'
+access_token = 'EAAUjRaaBokMBOZB8hVrQwvF9jMnbiePwFBWbjpW5WZBY8c6uZCzwjxqcO3nxGxKhtCPJhVPtxyv6TyhsUiMfX8SxJk3RwRIsmqbiUSDviWWbZBXRYbcXUSdtShkBNkwJ82Vc8bHqT0KXTbHsZAjDESKUGv9Ci5bfZBn8Mj7l2WZBbyECSpyPmoQZAeMc3aZAkzvqzwd0V7k4a8E6PaxCeVwZDZD'
+instagram_account_id = '17841459665084773'
 
 # Проверка, что переменные окружения заданы
 if not access_token or not instagram_account_id:
