@@ -11,9 +11,9 @@ if not access_token or not instagram_account_id:
     raise ValueError("Токен доступа или ID аккаунта не установлены.")
 
 # URL для запроса первой страницы медиа-объектов
-base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp&access_token={access_token}'
+base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp,media_type&access_token={access_token}'
 
-# Словарь для хранения публикаций, лайков и комментариев по датам
+# Словарь для хранения публикаций, лайков, комментариев и типов публикаций по датам
 posts_data = {}
 earliest_date = None  # Переменная для самой ранней даты публикации
 
@@ -23,6 +23,7 @@ def process_page(data):
     for media in data.get('data', []):
         media_id = media['id']
         date_str = media['timestamp'][:10]  # Извлекаем дату (YYYY-MM-DD)
+        media_type = media.get('media_type', 'UNKNOWN')  # Получаем тип публикации
 
         # Определяем самую раннюю дату
         if earliest_date is None or date_str < earliest_date:
@@ -35,7 +36,14 @@ def process_page(data):
 
         # Инициализация данных для текущей даты
         if date_str not in posts_data:
-            posts_data[date_str] = {'posts_count': 0, 'likes': 0, 'comments': 0}
+            posts_data[date_str] = {
+                'posts_count': 0,
+                'likes': 0,
+                'comments': 0,
+                'single_photos': 0,
+                'reels': 0,
+                'carousels': 0
+            }
 
         # Увеличиваем количество публикаций
         posts_data[date_str]['posts_count'] += 1
@@ -43,6 +51,14 @@ def process_page(data):
         # Добавляем лайки и комментарии
         posts_data[date_str]['likes'] += metrics_data.get('like_count', 0)
         posts_data[date_str]['comments'] += metrics_data.get('comments_count', 0)
+
+        # Увеличиваем счётчик в зависимости от типа публикации
+        if media_type == 'IMAGE':
+            posts_data[date_str]['single_photos'] += 1
+        elif media_type == 'REELS':
+            posts_data[date_str]['reels'] += 1
+        elif media_type == 'CAROUSEL_ALBUM':
+            posts_data[date_str]['carousels'] += 1
 
 # Обрабатываем все страницы
 next_url = base_url
@@ -65,15 +81,30 @@ if earliest_date:
     # Убедимся, что для всех дат есть данные (добавляем 0 для отсутствующих дат)
     for date in all_dates:
         if date not in posts_data:
-            posts_data[date] = {'posts_count': 0, 'likes': 0, 'comments': 0}
+            posts_data[date] = {
+                'posts_count': 0,
+                'likes': 0,
+                'comments': 0,
+                'single_photos': 0,
+                'reels': 0,
+                'carousels': 0
+            }
 
     # Сохраняем результаты в CSV файл
     with open('instagram_posts_data.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Дата', 'Количество публикаций', 'Лайки', 'Комментарии'])
+        writer.writerow(['Дата', 'Количество публикаций', 'Лайки', 'Комментарии', 'Фото', 'Рилсы', 'Карусели'])
         for date in sorted(posts_data.keys()):
             metrics = posts_data[date]
-            writer.writerow([date, metrics['posts_count'], metrics['likes'], metrics['comments']])
+            writer.writerow([
+                date,
+                metrics['posts_count'],
+                metrics['likes'],
+                metrics['comments'],
+                metrics['single_photos'],
+                metrics['reels'],
+                metrics['carousels']
+            ])
 
     print(f"Данные успешно сохранены в 'instagram_posts_data.csv'. Данные с {earliest_date} по {end_date.strftime('%Y-%m-%d')}.")
 else:
