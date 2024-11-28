@@ -3,28 +3,19 @@ from datetime import datetime, timedelta
 import requests
 
 # Токен доступа и ID Instagram-аккаунта
-access_token = 'EAAUjRaaBokMBO9exzG388hsSSw1RfCZCHWrrQ4KBzULi1fTjwNJ3Hm34rWVIPfjKeBQ5k12A6uAsUjqtb1i2YMi1PySuXhbwOJQjRznLOmzNe0eBW538zOhCVFBCFrvIEVi5ZAbKxrOnQORAD0LZBBJuhObXvVxk4E6OZBHeCIemyXpxJBk30ZA4Q'
-instagram_account_id = '17841459665084773'
+access_token = 'ТВОЙ_ACCESS_TOKEN'
+instagram_account_id = 'ТВОЙ_INSTAGRAM_ACCOUNT_ID'
 
 # Проверка, что переменные окружения заданы
 if not access_token or not instagram_account_id:
     raise ValueError("Токен доступа или ID аккаунта не установлены.")
 
 # URL для запроса первой страницы медиа-объектов
-base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp,media_type,caption&access_token={access_token}'
+base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,media_type,timestamp,caption&access_token={access_token}'
 
 # Словарь для хранения данных
 posts_data = {}
 earliest_date = None  # Переменная для самой ранней даты публикации
-
-# Функция для проверки, является ли объект рилсом
-def is_reel(media):
-    # API может не иметь явного типа "REELS", поэтому проверяем дополнительные атрибуты
-    media_type = media.get('media_type', '')
-    caption = media.get('caption', '').lower()  # Проверяем описание на ключевые слова
-    if media_type == 'VIDEO' and 'reel' in caption:
-        return True
-    return False
 
 # Функция для обработки данных со страницы
 def process_page(data):
@@ -42,10 +33,10 @@ def process_page(data):
         if date_str not in posts_data:
             posts_data[date_str] = {'posts_count': 0, 'reels_count': 0, 'likes': 0, 'comments': 0}
 
-        # Проверяем, является ли объект рилсом
-        if is_reel(media):
+        # Разделяем на рилсы и посты
+        if media_type == 'VIDEO':  # Рилсы
             posts_data[date_str]['reels_count'] += 1
-        else:
+        elif media_type in ['IMAGE', 'CAROUSEL_ALBUM']:  # Посты
             posts_data[date_str]['posts_count'] += 1
 
         # Запрашиваем лайки и комментарии для конкретного поста
@@ -62,9 +53,6 @@ next_url = base_url
 while next_url:
     response = requests.get(next_url)
     data = response.json()
-
-    # Добавляем отладочный вывод для проверки данных
-    print("Ответ API:", data)
 
     # Обрабатываем текущую страницу данных
     process_page(data)
