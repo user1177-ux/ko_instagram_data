@@ -21,6 +21,8 @@ earliest_date = None  # Переменная для самой ранней да
 def process_page(data):
     global earliest_date
     for media in data.get('data', []):
+        print("Медиа объект:", media)  # Лог для отладки данных от API
+        
         media_id = media['id']
         media_type = media.get('media_type', '')  # Тип медиа
         date_str = media['timestamp'][:10]  # Извлекаем дату (YYYY-MM-DD)
@@ -35,8 +37,10 @@ def process_page(data):
 
         # Разделяем на рилсы и посты
         if media_type == 'VIDEO':  # Рилсы
+            print(f"Определён как рилс: {media}")
             posts_data[date_str]['reels_count'] += 1
         elif media_type in ['IMAGE', 'CAROUSEL_ALBUM']:  # Посты
+            print(f"Определён как пост: {media}")
             posts_data[date_str]['posts_count'] += 1
 
         # Запрашиваем лайки и комментарии для конкретного поста
@@ -53,6 +57,8 @@ next_url = base_url
 while next_url:
     response = requests.get(next_url)
     data = response.json()
+
+    print("Ответ API для страницы:", data)  # Лог для проверки страницы
 
     # Обрабатываем текущую страницу данных
     process_page(data)
@@ -72,6 +78,7 @@ if earliest_date:
             posts_data[date] = {'posts_count': 0, 'reels_count': 0, 'likes': 0, 'comments': 0}
 
     # Сохраняем результаты в CSV файл
+    print("Итоговые данные для CSV:", posts_data)  # Лог перед записью в файл
     with open('instagram_posts_data.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(['Дата', 'Посты', 'Рилсы', 'Лайки', 'Комментарии'])
