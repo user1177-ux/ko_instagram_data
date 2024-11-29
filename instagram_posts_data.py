@@ -1,114 +1,113 @@
-import csv
-from datetime import datetime, timedelta
 import requests
+import csv
+import os
+import json
+from datetime import datetime, timedelta
 
-# Токен доступа и ID Instagram-аккаунта
-access_token = 'EAAUjRaaBokMBOxBXe4jGKE9cfhz1nOOiZB83gr5U0lEAna3v99SCZAuW6CtooONvAbnQBTB1EBx6GsJ7e4ZBcFGRN6Fb6eJ29qx3YUf1rql72B3tGehsSy0egmZCcFQwS36dSLpPXCqMvEzNauCjZCZAttTZBBsbo9zDZCoX2oWJavUyB3EWMnJGBC1s'
-instagram_account_id = '17841459665084773'
+def fetch_data():
+    access_token = os.getenv('ACCESS_TOKEN')
+    ad_account_id = os.getenv('AD_ACCOUNT_ID')
 
-# URL для запроса первой страницы медиа-объектов
-base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,media_type,timestamp,like_count,comments_count,saved_count,shared_count,permalink,insights.metric(impressions)&access_token={access_token}'
+    if not access_token or not ad_account_id:
+        print("ACCESS_TOKEN or AD_ACCOUNT_ID not set")
+        return
 
-# Словарь для хранения данных
-posts_data = {}
-earliest_date = None  # Переменная для самой ранней даты публикации
+    # Даты
+    end_date = datetime.now() - timedelta(days=1)
+    end_date_str = end_date.strftime('%Y-%m-%d')
+    start_date = '2024-06-01'  # Начальная дата для получения всех данных
 
-# Функция для преобразования типа контента
-def transform_media_type(media_type):
-    if media_type == 'IMAGE':
-        return 'пост'
-    elif media_type == 'VIDEO':
-        return 'рилс'
-    elif media_type == 'CAROUSEL_ALBUM':
-        return 'карусель'
-    return 'неизвестно'
+    url = f'https://graph.facebook.com/v20.0/act_{ad_account_id}/campaigns'
+    params = {'access_token': access_token}
 
-# Функция для обработки данных со страницы
-def process_page(data):
-    global earliest_date
-    for media in data.get('data', []):
-        media_id = media['id']
-        media_type = transform_media_type(media.get('media_type', ''))  # Преобразуем тип
-        date_str = media['timestamp'][:10]  # Извлекаем дату (YYYY-MM-DD)
-
-        # Определяем самую раннюю дату
-        if earliest_date is None or date_str < earliest_date:
-            earliest_date = date_str
-
-        # Инициализация данных для текущей даты
-        if date_str not in posts_data:
-            posts_data[date_str] = []
-
-        # Получаем базовые метрики
-        likes = media.get('like_count', 0)
-        comments = media.get('comments_count', 0)
-        saves = media.get('saved_count', 0)
-        shares = media.get('shared_count', 0)
-        permalink = media.get('permalink', '')
-        impressions = 0
-
-        # Получаем просмотры из insights, если они есть
-        insights = media.get('insights', {}).get('data', [])
-        for insight in insights:
-            if insight['name'] == 'impressions':
-                impressions = insight['values'][0]['value']
-
-        # Добавляем данные по посту
-        posts_data[date_str].append({
-            'media_type': media_type,
-            'permalink': permalink,
-            'likes': likes,
-            'comments': comments,
-            'saves': saves,
-            'shares': shares,
-            'impressions': impressions
-        })
-
-# Обрабатываем все страницы
-next_url = base_url
-while next_url:
-    response = requests.get(next_url)
+    response = requests.get(url, params=params)
     data = response.json()
 
-    # Лог для проверки текущей страницы
-    print("Ответ API для страницы:", data)
+    if 'error' in data:
+        print(f"Ошибка в ответе API: {data['error']}")
+        return
 
-    # Обрабатываем текущую страницу данных
-    process_page(data)
+    if 'data' not in data:
+        print("Ответ API не содержит ключ 'data'")
+        print("Полный ответ:", data)
+        return
 
-    # Переходим на следующую страницу, если она есть
-    next_url = data.get('paging', {}).get('next')
+    print(f"Получено {len(data['data'])} кампаний")
 
-# Создаём полный список дат начиная с earliest_date до сегодняшнего дня
-if earliest_date:
-    start_date = datetime.strptime(earliest_date, '%Y-%m-%d')
-    end_date = datetime.now()
-    all_dates = [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') for i in range((end_date - start_date).days + 1)]
+    result = []
+    for campaign in data['data']:
+        next_page_url = f'https://graph.facebook.com/v20.0/{campaign["id"]}/insights'
+        while next_page_url:
+            insight_params = {
+                'fields': 'campaign_name,campaign_id,adset_name,clicks,reach,impressions,actions,date_start,spend',
+                'access_token': access_token,
+                'time_range': json.dumps({'since': start_date, 'until': end_date_str}),
+                'time_increment': '1'
+            }
+            response = requests.get(next_page_url, params=insight_params)
+            insight_data = response.json()
 
-    # Убедимся, что для всех дат есть данные
-    for date in all_dates:
-        if date not in posts_data:
-            posts_data[date] = []
+            if 'error' in insight_data:
+                print(f"Ошибка в ответе API при запросе insights: {insight_data['error']}")
+                break
 
-    # Сохраняем результаты в CSV файл
-    with open('instagram_posts_data.csv', mode='w', newline='') as file:
-        writer = csv.writer(file)
-        writer.writerow([
-            'Дата', 'Тип поста', 'Ссылка', 'Лайки', 'Комментарии', 'Сохранения', 'Репосты', 'Просмотры'
-        ])
-        for date in sorted(posts_data.keys()):
-            for post in sorted(posts_data[date], key=lambda x: x['media_type']):  # Сортировка по типу
-                writer.writerow([
-                    date,
-                    post['media_type'],
-                    post['permalink'],
-                    post['likes'],
-                    post['comments'],
-                    post['saves'],
-                    post['shares'],
-                    post['impressions']
-                ])
+            if 'data' not in insight_data:
+                print("Ответ API на запрос insights не содержит ключ 'data'")
+                print("Полный ответ:", insight_data)
+                break
 
-    print(f"Данные успешно сохранены в 'instagram_posts_data.csv'. Данные с {earliest_date} по {end_date.strftime('%Y-%m-%d')}.")
-else:
-    print("Нет данных для записи в файл.")
+            # Обрабатываем данные текущей страницы
+            for record in insight_data['data']:
+                lead_action = next((action for action in record.get('actions', []) if action['action_type'] == 'lead'), None)
+                lead_value = int(lead_action['value']) if lead_action else 0
+                spend = float(record['spend'])
+                impressions = int(record['impressions'])
+                clicks = int(record['clicks'])
+                campaign_name = record['campaign_name']
+                adset_name = record.get('adset_name', 'Unknown')
+
+                # Определение языковой группы
+                if 'русский' in campaign_name.lower():
+                    campaign = 'RU'
+                elif 'английский' in campaign_name.lower():
+                    campaign = 'EN'
+                elif 'словенский' in campaign_name.lower():
+                    campaign = 'SLO'
+                else:
+                    campaign = campaign_name
+
+                result.append({
+                    'Дата': record['date_start'],
+                    'Клики': clicks,
+                    'Охват': record['reach'],
+                    'Показы': impressions,
+                    'Бюджет': f"{spend}".replace('.', ','),
+                    'Заявки': lead_value,
+                    'Кампания': campaign,
+                    'Группа объявлений': adset_name
+                })
+
+            # Проверяем и переходим на следующую страницу
+            next_page_url = insight_data.get('paging', {}).get('next')
+            if not next_page_url:
+                print("Нет следующей страницы. Переход завершён.")
+
+    if result:
+        print(f"Запись {len(result)} записей в файл")
+        keys = result[0].keys()
+        file_path = 'facebook_ads_data_leads_1_year.csv'
+        with open(file_path, 'w', newline='') as output_file:
+            dict_writer = csv.DictWriter(output_file, fieldnames=keys)
+            dict_writer.writeheader()
+            dict_writer.writerows(result)
+        
+        # Добавляем метку времени в конец файла
+        with open(file_path, 'a') as f:
+            f.write(f"\n# Last updated: {datetime.now().isoformat()}\n")
+        
+        print("Данные успешно экспортированы в", file_path)
+    else:
+        print("Нет данных для экспорта")
+
+if __name__ == "__main__":
+    fetch_data()
