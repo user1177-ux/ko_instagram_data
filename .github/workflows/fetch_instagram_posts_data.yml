@@ -1,10 +1,10 @@
-name: Fetch Instagram Daily Aggregated Data
+name: Fetch Instagram Data
 
 on:
   workflow_dispatch:
 
 jobs:
-  fetch-daily-data:
+  fetch-instagram-data:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,19 +21,36 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests
 
+    # Run instagram_daily_aggregated_data.py
     - name: Run Instagram daily aggregated script
       env:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
       run: python instagram_daily_aggregated_data.py
 
+    # Run instagram_posts_data.py
+    - name: Run Instagram posts script
+      env:
+        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+      run: python instagram_posts_data.py
+
+    # Run instagram_stories_data.py
+    - name: Run Instagram stories script
+      env:
+        ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
+        INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
+      run: python instagram_stories_data.py
+
     - name: Commit and push changes
       if: success()
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add instagram_daily_aggregated_data.csv || echo "Файл не найден, пропускаем commit"
-        git commit -m 'Updated Instagram daily aggregated data' || echo "Нет изменений для commit"
+        git add instagram_daily_aggregated_data.csv || echo "Файл instagram_daily_aggregated_data.csv не найден, пропускаем commit"
+        git add instagram_posts_data.csv || echo "Файл instagram_posts_data.csv не найден, пропускаем commit"
+        git add instagram_stories_data.csv || echo "Файл instagram_stories_data.csv не найден, пропускаем commit"
+        git commit -m 'Updated Instagram data files' || echo "Нет изменений для commit"
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
