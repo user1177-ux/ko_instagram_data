@@ -1,10 +1,10 @@
-name: Fetch Instagram Stories Data
+name: Fetch Instagram Daily Aggregated Data
 
 on:
   workflow_dispatch:
 
 jobs:
-  fetch-stories-data:
+  fetch-daily-data:
     runs-on: ubuntu-latest
 
     steps:
@@ -21,19 +21,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests
 
-    - name: Run Instagram stories script
+    - name: Run Instagram daily aggregated script
       env:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
-      run: python instagram_stories_data.py
+      run: python instagram_daily_aggregated_data.py
 
     - name: Commit and push changes
       if: success()
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add instagram_stories_data.csv || echo "Файл не найден, пропускаем commit"
-        git commit -m 'Updated Instagram stories data' || echo "Нет изменений для commit"
+        git add instagram_daily_aggregated_data.csv || echo "Файл не найден, пропускаем commit"
+        git commit -m 'Updated Instagram daily aggregated data' || echo "Нет изменений для commit"
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
