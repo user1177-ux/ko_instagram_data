@@ -7,7 +7,7 @@ access_token = 'EAAUjRaaBokMBOzgZAYEtvLIvkWnC2PVlH6AbRMMY6BNVyqVXWRZA4llHvWa0mCM
 instagram_account_id = '17841459665084773'
 
 # URL для запроса первой страницы медиа-объектов
-base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,timestamp,like_count,comments_count,saved_count,shared_count,insights.metric(plays)&access_token={access_token}'
+base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,media_type,timestamp,like_count,comments_count,saved_count,shared_count,insights.metric(impressions,plays)&access_token={access_token}'
 
 # Словарь для хранения данных
 daily_data = {}
@@ -18,14 +18,25 @@ def process_page(data):
     global earliest_date
     for media in data.get('data', []):
         timestamp = media['timestamp'][:10]  # Дата публикации (YYYY-MM-DD)
+        media_type = media.get('media_type', '')
         likes = media.get('like_count', 0)
         comments = media.get('comments_count', 0)
         saves = media.get('saved_count', 0)
         shares = media.get('shared_count', 0)
+        impressions = 0  # Для просмотров постов
+        plays = 0  # Для просмотров рилс
 
         # Проверяем и обновляем самую раннюю дату
         if earliest_date is None or timestamp < earliest_date:
             earliest_date = timestamp
+
+        # Извлекаем метрики "impressions" и "plays"
+        insights = media.get('insights', {}).get('data', [])
+        for metric in insights:
+            if metric['name'] == 'impressions':
+                impressions = metric['values'][0]['value']
+            elif metric['name'] == 'plays':
+                plays = metric['values'][0]['value']
 
         # Агрегируем метрики по дате
         if timestamp not in daily_data:
@@ -34,13 +45,19 @@ def process_page(data):
                 'comments': 0,
                 'saves': 0,
                 'shares': 0,
-                'plays': 0  # Для просмотров
+                'post_views': 0,
+                'reels_views': 0
             }
 
         daily_data[timestamp]['likes'] += likes
         daily_data[timestamp]['comments'] += comments
         daily_data[timestamp]['saves'] += saves
         daily_data[timestamp]['shares'] += shares
+
+        if media_type in ['IMAGE', 'CAROUSEL_ALBUM', 'VIDEO']:  # Для постов
+            daily_data[timestamp]['post_views'] += impressions
+        elif media_type == 'REELS':  # Для рилс
+            daily_data[timestamp]['reels_views'] += plays
 
 # Обрабатываем все страницы
 next_url = base_url
@@ -66,18 +83,19 @@ if earliest_date:
     # Убедимся, что для всех дат есть данные
     for date in all_dates:
         if date not in daily_data:
-            daily_data[date] = {'likes': 0, 'comments': 0, 'saves': 0, 'shares': 0, 'plays': 0}
+            daily_data[date] = {'likes': 0, 'comments': 0, 'saves': 0, 'shares': 0, 'post_views': 0, 'reels_views': 0}
 
     # Сохраняем результаты в CSV файл
     with open('instagram_daily_aggregated_data.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Дата', 'Лайки', 'Просмотры', 'Комментарии', 'Репосты', 'Сохранения'])
+        writer.writerow(['Дата', 'Лайки', 'Просмотры постов', 'Просмотры рилс', 'Комментарии', 'Репосты', 'Сохранения'])
         for date in sorted(daily_data.keys()):
             metrics = daily_data[date]
             writer.writerow([
                 date,
                 metrics['likes'],
-                metrics['plays'],  # Пока для просмотров
+                metrics['post_views'],  # Просмотры постов
+                metrics['reels_views'],  # Просмотры рилс
                 metrics['comments'],
                 metrics['shares'],
                 metrics['saves']
