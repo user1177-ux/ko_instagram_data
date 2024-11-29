@@ -33,35 +33,29 @@ def process_page(data):
 
         # Инициализация данных для текущей даты
         if date_str not in posts_data:
-            posts_data[date_str] = {'posts_count': 0, 'carousel_count': 0, 'reels_count': 0,
-                                    'likes': 0, 'comments': 0, 'saves': 0, 'shares': 0, 'views': 0}
-
-        # Разделяем на посты, карусели и рилсы
-        if media_type == 'VIDEO':  # Рилсы
-            print(f"Определён как рилс: {media}")
-            posts_data[date_str]['reels_count'] += 1
-        elif media_type == 'CAROUSEL_ALBUM':  # Карусели
-            print(f"Определён как карусель: {media}")
-            posts_data[date_str]['carousel_count'] += 1
-        elif media_type == 'IMAGE':  # Посты
-            print(f"Определён как пост: {media}")
-            posts_data[date_str]['posts_count'] += 1
+            posts_data[date_str] = []
 
         # Запрашиваем дополнительные метрики для конкретного поста
         metrics_url = f'https://graph.facebook.com/v20.0/{media_id}?fields=like_count,comments_count,saved_count,shared_count,insights.metric(impressions)&access_token={access_token}'
         metrics_response = requests.get(metrics_url)
         metrics_data = metrics_response.json()
 
-        # Добавляем лайки, комментарии, сохранения, репосты и просмотры
-        posts_data[date_str]['likes'] += metrics_data.get('like_count', 0)
-        posts_data[date_str]['comments'] += metrics_data.get('comments_count', 0)
-        posts_data[date_str]['saves'] += metrics_data.get('saved_count', 0)
-        posts_data[date_str]['shares'] += metrics_data.get('shared_count', 0)
-        # Просмотры приходят в метрике insights
+        # Получаем просмотры (impressions)
+        views = 0
         insights = metrics_data.get('insights', {}).get('data', [])
         for metric in insights:
             if metric['name'] == 'impressions':
-                posts_data[date_str]['views'] += metric.get('values', [{}])[0].get('value', 0)
+                views = metric.get('values', [{}])[0].get('value', 0)
+
+        # Добавляем данные по посту
+        posts_data[date_str].append({
+            'media_type': media_type,
+            'views': views,
+            'likes': metrics_data.get('like_count', 0),
+            'comments': metrics_data.get('comments_count', 0),
+            'shares': metrics_data.get('shared_count', 0),
+            'saves': metrics_data.get('saved_count', 0)
+        })
 
 # Обрабатываем все страницы
 next_url = base_url
@@ -83,21 +77,19 @@ if earliest_date:
     end_date = datetime.now()
     all_dates = [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') for i in range((end_date - start_date).days + 1)]
 
-    # Убедимся, что для всех дат есть данные (добавляем 0 для отсутствующих дат)
+    # Убедимся, что для всех дат есть данные
     for date in all_dates:
         if date not in posts_data:
-            posts_data[date] = {'posts_count': 0, 'carousel_count': 0, 'reels_count': 0,
-                                'likes': 0, 'comments': 0, 'saves': 0, 'shares': 0, 'views': 0}
+            posts_data[date] = []
 
     # Сохраняем результаты в CSV файл
     print("Итоговые данные для CSV:", posts_data)  # Лог перед записью в файл
     with open('instagram_posts_data.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Дата', 'Посты', 'Карусели', 'Рилсы', 'Лайки', 'Комментарии', 'Сохранения', 'Репосты', 'Просмотры'])
+        writer.writerow(['Дата', 'Тип поста', 'Просмотры', 'Лайки', 'Комментарии', 'Репосты', 'Сохранения'])
         for date in sorted(posts_data.keys()):
-            metrics = posts_data[date]
-            writer.writerow([date, metrics['posts_count'], metrics['carousel_count'], metrics['reels_count'],
-                             metrics['likes'], metrics['comments'], metrics['saves'], metrics['shares'], metrics['views']])
+            for post in posts_data[date]:
+                writer.writerow([date, post['media_type'], post['views'], post['likes'], post['comments'], post['shares'], post['saves']])
 
     print(f"Данные успешно сохранены в 'instagram_posts_data.csv'. Данные с {earliest_date} по {end_date.strftime('%Y-%m-%d')}.")
 else:
