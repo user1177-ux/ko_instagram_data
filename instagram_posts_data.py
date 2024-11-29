@@ -3,11 +3,11 @@ from datetime import datetime, timedelta
 import requests
 
 # Токен доступа и ID Instagram-аккаунта
-access_token = 'EAAUjRaaBokMBOwfYtk6tknzsZCkDEy0qZAZBIdOzZA6V3uZCJyZBBRONZCEpzBbqI56kHFTewJS1jYFh8GF5PbUNKkGcytEZCxmFWjhZA0fsVuSI0O5qhfe3GH3nFMavvYCP41baTZCcSbNR2bmjCbAQxk9iHKppD1ClaqT9pTB8cXbpevzXGduQmTRldWDsfO2HfI6QjUdLaZCjZBFZAk5C0SgZDZD'
+access_token = 'EAAUjRaaBokMBOZB8hVrQwvF9jMnbiePwFBWbjpW5WZBY8c6uZCzwjxqcO3nxGxKhtCPJhVPtxyv6TyhsUiMfX8SxJk3RwRIsmqbiUSDviWWbZBXRYbcXUSdtShkBNkwJ82Vc8bHqT0KXTbHsZAjDESKUGv9Ci5bfZBn8Mj7l2WZBbyECSpyPmoQZAeMc3aZAkzvqzwd0V7k4a8E6PaxCeVwZDZD'
 instagram_account_id = '17841459665084773'
 
 # URL для запроса первой страницы медиа-объектов
-base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,media_type,timestamp,like_count,comments_count,permalink,insights.metric(impressions,reach)&access_token={access_token}'
+base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,media_type,timestamp,like_count,comments_count,saved_count,shared_count,permalink,insights.metric(impressions,reach)&access_token={access_token}'
 
 # Словарь для хранения данных
 posts_data = {}
@@ -71,6 +71,8 @@ def process_page(data):
         # Получаем базовые метрики
         likes = media.get('like_count', 0)
         comments = media.get('comments_count', 0)
+        saves = media.get('saved_count', 0)
+        shares = media.get('shared_count', 0)
         permalink = media.get('permalink', '')
 
         # Если это рилс, запрашиваем дополнительные метрики
@@ -83,6 +85,8 @@ def process_page(data):
             'media_type': media_type,
             'likes': likes,
             'comments': comments,
+            'saves': saves,
+            'shares': shares,
             'permalink': permalink,
             'plays': reels_metrics.get('plays'),
             'video_views': reels_metrics.get('video_views'),
@@ -119,7 +123,11 @@ if earliest_date:
     # Сохраняем результаты в CSV файл
     with open('instagram_posts_data.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Дата', 'Тип поста', 'Лайки', 'Комментарии', 'Ссылка', 'Первичные воспроизведения', 'Просмотры (3 секунды)', 'Всего воспроизведений', 'Среднее время просмотра (мс)'])
+        writer.writerow([
+            'Дата', 'Тип поста', 'Лайки', 'Комментарии', 'Сохранения', 'Репосты',
+            'Ссылка', 'Первичные воспроизведения', 'Просмотры (3 секунды)', 
+            'Всего воспроизведений', 'Среднее время просмотра (мс)'
+        ])
         for date in sorted(posts_data.keys()):
             for post in posts_data[date]:
                 writer.writerow([
@@ -127,6 +135,8 @@ if earliest_date:
                     post['media_type'],
                     post['likes'],
                     post['comments'],
+                    post['saves'],
+                    post['shares'],
                     post['permalink'],
                     post.get('plays'),
                     post.get('video_views'),
