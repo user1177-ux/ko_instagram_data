@@ -83,11 +83,11 @@ def process_page(data):
         # Добавляем данные по посту
         posts_data[date_str].append({
             'media_type': media_type,
+            'permalink': permalink,
             'likes': likes,
             'comments': comments,
             'saves': saves,
             'shares': shares,
-            'permalink': permalink,
             'plays': reels_metrics.get('plays'),
             'video_views': reels_metrics.get('video_views'),
             'all_plays_count': reels_metrics.get('all_plays_count'),
@@ -124,20 +124,20 @@ if earliest_date:
     with open('instagram_posts_data.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow([
-            'Дата', 'Тип поста', 'Лайки', 'Комментарии', 'Сохранения', 'Репосты',
-            'Ссылка', 'Первичные воспроизведения', 'Просмотры (3 секунды)', 
+            'Дата', 'Тип поста', 'Ссылка', 'Лайки', 'Комментарии', 'Сохранения', 'Репосты',
+            'Первичные воспроизведения', 'Просмотры (3 секунды)', 
             'Всего воспроизведений', 'Среднее время просмотра (мс)'
         ])
         for date in sorted(posts_data.keys()):
-            for post in posts_data[date]:
+            for post in sorted(posts_data[date], key=lambda x: x['media_type']):  # Сортировка по типу
                 writer.writerow([
                     date,
                     post['media_type'],
+                    post['permalink'],
                     post['likes'],
                     post['comments'],
                     post['saves'],
                     post['shares'],
-                    post['permalink'],
                     post.get('plays'),
                     post.get('video_views'),
                     post.get('all_plays_count'),
