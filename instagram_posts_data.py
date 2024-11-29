@@ -11,8 +11,7 @@ base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?field
 
 # Словарь для хранения данных
 posts_data = {}
-start_date = '2024-04-16'  # Начальная дата для получения всех данных
-earliest_date = start_date
+earliest_date = None  # Переменная для самой ранней даты публикации
 
 # Функция для преобразования типа контента
 def transform_media_type(media_type):
@@ -26,10 +25,15 @@ def transform_media_type(media_type):
 
 # Функция для обработки данных со страницы
 def process_page(data):
+    global earliest_date
     for media in data.get('data', []):
         media_id = media['id']
         media_type = transform_media_type(media.get('media_type', ''))  # Преобразуем тип
         date_str = media['timestamp'][:10]  # Извлекаем дату (YYYY-MM-DD)
+
+        # Определяем самую раннюю дату
+        if earliest_date is None or date_str < earliest_date:
+            earliest_date = date_str
 
         # Инициализация данных для текущей даты
         if date_str not in posts_data:
@@ -75,33 +79,41 @@ while next_url:
     # Переходим на следующую страницу, если она есть
     next_url = data.get('paging', {}).get('next')
 
-# Создаём полный список дат начиная с start_date до сегодняшнего дня
-start_date_dt = datetime.strptime(start_date, '%Y-%m-%d')
-end_date = datetime.now()
-all_dates = [(start_date_dt + timedelta(days=i)).strftime('%Y-%m-%d') for i in range((end_date - start_date_dt).days + 1)]
+# Создаём полный список дат начиная с earliest_date до сегодняшнего дня
+if earliest_date:
+    start_date = datetime.strptime(earliest_date, '%Y-%m-%d')
+    end_date = datetime.now()
+    all_dates = [(start_date + timedelta(days=i)).strftime('%Y-%m-%d') for i in range((end_date - start_date).days + 1)]
 
-# Убедимся, что для всех дат есть данные
-for date in all_dates:
-    if date not in posts_data:
-        posts_data[date] = []
+    # Убедимся, что для всех дат есть данные
+    for date in all_dates:
+        if date not in posts_data:
+            posts_data[date] = []
 
-# Сохраняем результаты в CSV файл
-with open('instagram_posts_data.csv', mode='w', newline='') as file:
-    writer = csv.writer(file)
-    writer.writerow([
-        'Дата', 'Тип поста', 'Ссылка', 'Лайки', 'Комментарии', 'Сохранения', 'Репосты', 'Просмотры'
-    ])
-    for date in sorted(posts_data.keys()):
-        for post in sorted(posts_data[date], key=lambda x: x['media_type']):  # Сортировка по типу
-            writer.writerow([
-                date,
-                post['media_type'],
-                post['permalink'],
-                post['likes'],
-                post['comments'],
-                post['saves'],
-                post['shares'],
-                post['impressions']
-            ])
+    # Сохраняем результаты в CSV файл
+    file_path = 'instagram_posts_data.csv'
+    with open(file_path, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([
+            'Дата', 'Тип поста', 'Ссылка', 'Лайки', 'Комментарии', 'Сохранения', 'Репосты', 'Просмотры'
+        ])
+        for date in sorted(posts_data.keys()):
+            for post in sorted(posts_data[date], key=lambda x: x['media_type']):  # Сортировка по типу
+                writer.writerow([
+                    date,
+                    post['media_type'],
+                    post['permalink'],
+                    post['likes'],
+                    post['comments'],
+                    post['saves'],
+                    post['shares'],
+                    post['impressions']
+                ])
 
-print(f"Данные успешно сохранены в 'instagram_posts_data.csv'. Данные с {start_date} по {end_date.strftime('%Y-%m-%d')}.")
+    # Добавляем метку времени в конец файла, чтобы GitHub видел изменения
+    with open(file_path, 'a') as f:
+        f.write(f"\n# Last updated: {datetime.now().isoformat()}\n")
+
+    print(f"Данные успешно сохранены в '{file_path}'. Данные с {earliest_date} по {end_date.strftime('%Y-%m-%d')}.")
+else:
+    print("Нет данных для записи в файл.")
