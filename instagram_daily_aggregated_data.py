@@ -7,11 +7,32 @@ access_token = 'EAAUjRaaBokMBOxBXe4jGKE9cfhz1nOOiZB83gr5U0lEAna3v99SCZAuW6CtooON
 instagram_account_id = '17841459665084773'
 
 # URL для запроса первой страницы медиа-объектов
-base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,media_type,timestamp,like_count,comments_count,saved_count,shared_count,insights.metric(impressions,plays)&access_token={access_token}'
+base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,media_type,timestamp,like_count,comments_count,saved_count,shared_count,insights.metric(impressions)&access_token={access_token}'
 
 # Словарь для хранения данных
 daily_data = {}
 earliest_date = None
+
+# Функция для получения дополнительных метрик рилсов
+def get_reels_metrics(media_id):
+    url = f'https://graph.facebook.com/v20.0/{media_id}/insights?metric=plays,video_views,ig_reels_aggregated_all_plays_count&access_token={access_token}'
+    response = requests.get(url)
+    data = response.json()
+
+    # Лог для проверки данных
+    print(f"Ответ метрик для рилса {media_id}: {data}")
+
+    metrics = {'plays': 0, 'video_views': 0, 'all_plays_count': 0}
+
+    for item in data.get('data', []):
+        if item['name'] == 'plays':
+            metrics['plays'] = item['values'][0]['value']
+        elif item['name'] == 'video_views':
+            metrics['video_views'] = item['values'][0]['value']
+        elif item['name'] == 'ig_reels_aggregated_all_plays_count':
+            metrics['all_plays_count'] = item['values'][0]['value']
+
+    return metrics
 
 # Функция для обработки данных со страницы
 def process_page(data):
@@ -23,22 +44,19 @@ def process_page(data):
         comments = media.get('comments_count', 0)
         saves = media.get('saved_count', 0)
         shares = media.get('shared_count', 0)
-        impressions = 0  # Для просмотров постов
-        plays = 0  # Для просмотров рилс
+        impressions = 0
 
         # Проверяем и обновляем самую раннюю дату
         if earliest_date is None or timestamp < earliest_date:
             earliest_date = timestamp
 
-        # Извлекаем метрики "impressions" и "plays"
+        # Извлекаем метрику "impressions" для постов
         insights = media.get('insights', {}).get('data', [])
         for metric in insights:
             if metric['name'] == 'impressions':
                 impressions = metric['values'][0]['value']
-            elif metric['name'] == 'plays':
-                plays = metric['values'][0]['value']
 
-        # Агрегируем метрики по дате
+        # Инициализация данных для текущей даты
         if timestamp not in daily_data:
             daily_data[timestamp] = {
                 'likes': 0,
@@ -57,7 +75,8 @@ def process_page(data):
         if media_type in ['IMAGE', 'CAROUSEL_ALBUM', 'VIDEO']:  # Для постов
             daily_data[timestamp]['post_views'] += impressions
         elif media_type == 'REELS':  # Для рилс
-            daily_data[timestamp]['reels_views'] += plays
+            reels_metrics = get_reels_metrics(media['id'])
+            daily_data[timestamp]['reels_views'] += reels_metrics['all_plays_count']
 
 # Обрабатываем все страницы
 next_url = base_url
