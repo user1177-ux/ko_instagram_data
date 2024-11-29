@@ -1,12 +1,10 @@
-name: Fetch Instagram Posts Data
+name: Fetch Instagram Reels Data
 
 on:
-  schedule:
-    - cron: '0 0 * * *'  # Запуск каждый день в полночь
   workflow_dispatch:
 
 jobs:
-  fetch-posts:
+  fetch-reels-data:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,19 +21,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install requests
 
-    - name: Run Instagram posts script
+    - name: Run Instagram reels script
       env:
         ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN }}
         INSTAGRAM_ACCOUNT_ID: ${{ secrets.INSTAGRAM_ACCOUNT_ID }}
-      run: python instagram_posts_data.py
+      run: python instagram_reels_data.py
 
-    - name: Commit and push post data
+    - name: Commit and push changes
       if: success()
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add instagram_posts_data.csv
-        git commit -m 'Updated Instagram posts data' || echo "No changes to commit"
+        git add instagram_reels_data.csv || echo "Файл не найден, пропускаем commit"
+        git commit -m 'Updated Instagram reels data' || echo "Нет изменений для commit"
         git push
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
