@@ -10,73 +10,60 @@ instagram_account_id = '17841459665084773'
 base_url = f'https://graph.facebook.com/v20.0/{instagram_account_id}/media?fields=id,media_type,timestamp,like_count,comments_count,saved_count,shared_count,insights.metric(impressions)&access_token={access_token}'
 
 # Словарь для хранения данных
-daily_data = {}
-earliest_date = None
+posts_data = {}
+earliest_date = None  # Переменная для самой ранней даты публикации
 
-# Функция для получения дополнительных метрик рилсов
-def get_reels_metrics(media_id):
-    url = f'https://graph.facebook.com/v20.0/{media_id}/insights?metric=plays,video_views,ig_reels_aggregated_all_plays_count&access_token={access_token}'
-    response = requests.get(url)
-    data = response.json()
-
-    # Лог для проверки данных
-    print(f"Ответ метрик для рилса {media_id}: {data}")
-
-    metrics = {'plays': 0, 'video_views': 0, 'all_plays_count': 0}
-
-    for item in data.get('data', []):
-        if item['name'] == 'plays':
-            metrics['plays'] = item['values'][0]['value']
-        elif item['name'] == 'video_views':
-            metrics['video_views'] = item['values'][0]['value']
-        elif item['name'] == 'ig_reels_aggregated_all_plays_count':
-            metrics['all_plays_count'] = item['values'][0]['value']
-
-    return metrics
+# Функция для преобразования типа контента
+def transform_media_type(media_type):
+    if media_type == 'IMAGE':
+        return 'пост'
+    elif media_type == 'VIDEO':
+        return 'рилс'
+    elif media_type == 'CAROUSEL_ALBUM':
+        return 'карусель'
+    return 'неизвестно'
 
 # Функция для обработки данных со страницы
 def process_page(data):
     global earliest_date
     for media in data.get('data', []):
-        timestamp = media['timestamp'][:10]  # Дата публикации (YYYY-MM-DD)
-        media_type = media.get('media_type', '')
+        media_id = media['id']
+        media_type = transform_media_type(media.get('media_type', ''))  # Преобразуем тип
+        date_str = media['timestamp'][:10]  # Извлекаем дату (YYYY-MM-DD)
+
+        # Определяем самую раннюю дату
+        if earliest_date is None or date_str < earliest_date:
+            earliest_date = date_str
+
+        # Инициализация данных для текущей даты
+        if date_str not in posts_data:
+            posts_data[date_str] = {
+                'likes': 0,
+                'comments': 0,
+                'saves': 0,
+                'shares': 0,
+                'impressions': 0  # Просмотры
+            }
+
+        # Получаем базовые метрики
         likes = media.get('like_count', 0)
         comments = media.get('comments_count', 0)
         saves = media.get('saved_count', 0)
         shares = media.get('shared_count', 0)
         impressions = 0
 
-        # Проверяем и обновляем самую раннюю дату
-        if earliest_date is None or timestamp < earliest_date:
-            earliest_date = timestamp
-
-        # Извлекаем метрику "impressions" для постов
+        # Получаем просмотры из insights, если они есть
         insights = media.get('insights', {}).get('data', [])
-        for metric in insights:
-            if metric['name'] == 'impressions':
-                impressions = metric['values'][0]['value']
+        for insight in insights:
+            if insight['name'] == 'impressions':
+                impressions = insight['values'][0]['value']
 
-        # Инициализация данных для текущей даты
-        if timestamp not in daily_data:
-            daily_data[timestamp] = {
-                'likes': 0,
-                'comments': 0,
-                'saves': 0,
-                'shares': 0,
-                'post_views': 0,
-                'reels_views': 0
-            }
-
-        daily_data[timestamp]['likes'] += likes
-        daily_data[timestamp]['comments'] += comments
-        daily_data[timestamp]['saves'] += saves
-        daily_data[timestamp]['shares'] += shares
-
-        if media_type in ['IMAGE', 'CAROUSEL_ALBUM', 'VIDEO']:  # Для постов
-            daily_data[timestamp]['post_views'] += impressions
-        elif media_type == 'REELS':  # Для рилс
-            reels_metrics = get_reels_metrics(media['id'])
-            daily_data[timestamp]['reels_views'] += reels_metrics['all_plays_count']
+        # Агрегируем данные
+        posts_data[date_str]['likes'] += likes
+        posts_data[date_str]['comments'] += comments
+        posts_data[date_str]['saves'] += saves
+        posts_data[date_str]['shares'] += shares
+        posts_data[date_str]['impressions'] += impressions
 
 # Обрабатываем все страницы
 next_url = base_url
@@ -84,7 +71,7 @@ while next_url:
     response = requests.get(next_url)
     data = response.json()
 
-    # Лог для проверки данных
+    # Лог для проверки текущей страницы
     print("Ответ API для страницы:", data)
 
     # Обрабатываем текущую страницу данных
@@ -101,20 +88,25 @@ if earliest_date:
 
     # Убедимся, что для всех дат есть данные
     for date in all_dates:
-        if date not in daily_data:
-            daily_data[date] = {'likes': 0, 'comments': 0, 'saves': 0, 'shares': 0, 'post_views': 0, 'reels_views': 0}
+        if date not in posts_data:
+            posts_data[date] = {
+                'likes': 0,
+                'comments': 0,
+                'saves': 0,
+                'shares': 0,
+                'impressions': 0
+            }
 
     # Сохраняем результаты в CSV файл
     with open('instagram_daily_aggregated_data.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
-        writer.writerow(['Дата', 'Лайки', 'Просмотры постов', 'Просмотры рилс', 'Комментарии', 'Репосты', 'Сохранения'])
-        for date in sorted(daily_data.keys()):
-            metrics = daily_data[date]
+        writer.writerow(['Дата', 'Лайки', 'Просмотры', 'Комментарии', 'Репосты', 'Сохранения'])
+        for date in sorted(posts_data.keys()):
+            metrics = posts_data[date]
             writer.writerow([
                 date,
                 metrics['likes'],
-                metrics['post_views'],  # Просмотры постов
-                metrics['reels_views'],  # Просмотры рилс
+                metrics['impressions'],
                 metrics['comments'],
                 metrics['shares'],
                 metrics['saves']
